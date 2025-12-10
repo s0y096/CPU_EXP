@@ -103,15 +103,15 @@ module EX(
 
     // MUL part
     wire [63:0] mul_result;
-    wire mul_signed; // 鏈夌鍙蜂箻娉曟爣璁?
+    wire mul_signed; // 有符号乘法标记
 
     mul u_mul(
     	.clk        (clk            ),
         .resetn     (~rst           ),
         .mul_signed (mul_signed     ),
-        .ina        (      ), // 涔樻硶婧愭搷浣滄暟1
-        .inb        (      ), // 涔樻硶婧愭搷浣滄暟2
-        .result     (mul_result     ) // 涔樻硶缁撴灉 64bit
+        .ina        (      ), // 乘法源操作数1
+        .inb        (      ), // 乘法源操作数2
+        .result     (mul_result     ) // 乘法结果 64bit
     );
 
     // DIV part
@@ -134,7 +134,7 @@ module EX(
         .opdata2_i    (div_opdata2_o    ),
         .start_i      (div_start_o      ),
         .annul_i      (1'b0      ),
-        .result_o     (div_result     ), // 闄ゆ硶缁撴灉 64bit
+        .result_o     (div_result     ), // 乘法结果 64bit
         .ready_o      (div_ready_i      )
     );
 
@@ -205,7 +205,7 @@ module EX(
         end
     end
 
-    // mul_result 鍜? div_result 鍙互鐩存帴浣跨敤
+    // mul_result 和 div_result 可以直接使用
     
     
 endmodule
