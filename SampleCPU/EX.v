@@ -9,6 +9,8 @@ module EX(
 
     output wire [`EX_TO_MEM_WD-1:0] ex_to_mem_bus,
 
+    output wire [37:0] ex_to_id_bus,
+
     output wire data_sram_en,
     output wire [3:0] data_sram_wen,
     output wire [31:0] data_sram_addr,
@@ -93,9 +95,15 @@ module EX(
         ex_result       // 31:0
     };
 
+    assign ex_to_id_bus = {
+        rf_we,          // 37
+        rf_waddr,       // 36:32
+        ex_result       // 31:0
+    };
+
     // MUL part
     wire [63:0] mul_result;
-    wire mul_signed; // 有符号乘法标记
+    wire mul_signed; // 有符号乘法标�?
 
     mul u_mul(
     	.clk        (clk            ),
@@ -197,7 +205,7 @@ module EX(
         end
     end
 
-    // mul_result 和 div_result 可以直接使用
+    // mul_result �? div_result 可以直接使用
     
     
 endmodule
