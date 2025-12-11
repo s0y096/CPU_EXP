@@ -9,6 +9,8 @@ module EX(
 
     output wire [`EX_TO_MEM_WD-1:0] ex_to_mem_bus,
 
+    output wire [37:0] ex_to_id_bus,
+
     output wire data_sram_en,
     output wire [3:0] data_sram_wen,
     output wire [31:0] data_sram_addr,
@@ -93,17 +95,23 @@ module EX(
         ex_result       // 31:0
     };
 
+    assign ex_to_id_bus = {
+        rf_we,          // 37
+        rf_waddr,       // 36:32
+        ex_result       // 31:0
+    };
+
     // MUL part
     wire [63:0] mul_result;
-    wire mul_signed; // æœ‰ç¬¦å·ä¹˜æ³•æ ‡è®°
+    wire mul_signed; // ÓĞ·ûºÅ³Ë·¨±ê¼Ç
 
     mul u_mul(
     	.clk        (clk            ),
         .resetn     (~rst           ),
         .mul_signed (mul_signed     ),
-        .ina        (      ), // ä¹˜æ³•æºæ“ä½œæ•°1
-        .inb        (      ), // ä¹˜æ³•æºæ“ä½œæ•°2
-        .result     (mul_result     ) // ä¹˜æ³•ç»“æœ 64bit
+        .ina        (      ), // ³Ë·¨Ô´²Ù×÷Êı1
+        .inb        (      ), // ³Ë·¨Ô´²Ù×÷Êı2
+        .result     (mul_result     ) // ³Ë·¨½á¹û 64bit
     );
 
     // DIV part
@@ -126,7 +134,7 @@ module EX(
         .opdata2_i    (div_opdata2_o    ),
         .start_i      (div_start_o      ),
         .annul_i      (1'b0      ),
-        .result_o     (div_result     ), // é™¤æ³•ç»“æœ 64bit
+        .result_o     (div_result     ), // ³Ë·¨½á¹û 64bit
         .ready_o      (div_ready_i      )
     );
 
@@ -197,7 +205,7 @@ module EX(
         end
     end
 
-    // mul_result å’Œ div_result å¯ä»¥ç›´æ¥ä½¿ç”¨
+    // mul_result ºÍ div_result ¿ÉÒÔÖ±½ÓÊ¹ÓÃ
     
     
 endmodule
