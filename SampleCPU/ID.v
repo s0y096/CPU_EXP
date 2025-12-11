@@ -113,7 +113,7 @@ module ID(
     assign offset = inst[15:0];
     assign sel = inst[2:0];
 
-    wire inst_ori, inst_lui, inst_addiu, inst_beq, inst_subu;
+    wire inst_ori, inst_lui, inst_addiu, inst_beq, inst_subu, inst_jr;
 
     wire op_add, op_sub, op_slt, op_sltu;
     wire op_and, op_nor, op_or, op_xor;
@@ -145,7 +145,7 @@ module ID(
     assign inst_addiu   = op_d[6'b00_1001];  // 不用decoder函数也可写为 inst_addiu  =  (inst[31:26]==6'b00_1001)
     assign inst_beq     = op_d[6'b00_0100];  //  写为op_d[6'b000100]也可  
     assign inst_subu   = op_d[6'b00_0000] && (inst[10:6]==5'b00_000) && (inst[5:0]==6'b10_0011);
-
+    assign inst_jr        = op_d[6'b00_0000] && (inst[20:0]==21'b00_0000_0000_0000_0001_000);
 
     // rs to reg1
     assign sel_alu_src1[0] = inst_ori | inst_addiu | inst_subu;
@@ -246,8 +246,10 @@ module ID(
 
     assign rs_eq_rt = (rdata1 == rdata2);
 
-    assign br_e = inst_beq & rs_eq_rt;
-    assign br_addr = inst_beq ? (pc_plus_4 + {{14{inst[15]}},inst[15:0],2'b0}) : 32'b0;
+    assign br_e = (inst_beq & rs_eq_rt) | inst_jr;
+    assign br_addr = inst_beq ? (pc_plus_4 + {{14{inst[15]}},inst[15:0],2'b0}) :
+                                inst_jr ? (rdata1) :
+                                32'b0;
 
     assign br_bus = {
         br_e,
