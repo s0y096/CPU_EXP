@@ -113,7 +113,7 @@ module ID(
     assign offset = inst[15:0];
     assign sel = inst[2:0];
 
-    wire inst_ori, inst_lui, inst_addiu, inst_beq, inst_subu, inst_jr, inst_jal, inst_addu, inst_sll, inst_or;
+    wire inst_ori, inst_lui, inst_addiu, inst_beq, inst_subu, inst_jr, inst_jal, inst_addu, inst_sll, inst_or, inst_ben;
 
     wire op_add, op_sub, op_slt, op_sltu;
     wire op_and, op_nor, op_or, op_xor;
@@ -150,6 +150,7 @@ module ID(
     assign inst_addu   = op_d[6'b00_0000] && (inst[10:0]==11'b00_0001_0000_1);
     assign inst_sll        =op_d[6'b00_0000] && (inst[25:21]==5'b00_000) && (inst[5:0]==6'b00_0000); 
     assign inst_or        =op_d[6'b00_0000] && (inst[10:0]==11'b00_0001_0010_1);
+    assign inst_ben     =op_d[6'b00_0101];
     
     
     // rs to reg1
@@ -251,10 +252,11 @@ module ID(
 
     assign rs_eq_rt = (rdata1 == rdata2);
 
-    assign br_e = (inst_beq & rs_eq_rt) | inst_jr | inst_jal;
+    assign br_e = (inst_beq & rs_eq_rt) | inst_jr | inst_jal | (inst_ben & (~rs_eq_rt));
     assign br_addr = inst_beq ? (pc_plus_4 + {{14{inst[15]}},inst[15:0],2'b0}) :
                                 inst_jr ? (rdata1) :
                                 inst_jal ? ({pc_plus_4[31:28], inst[25:0], 2'b0}) :
+                                inst_ben ? (pc_plus_4 + {{14{inst[15]}}, inst[15:0], 2'b0}) :
                                 32'b0;
 
     assign br_bus = {
