@@ -57,8 +57,8 @@ module EX(
         rf_we,          // 70
         rf_waddr,       // 69:65
         sel_rf_res,     // 64
-        rf_rdata1,         // 63:32
-        rf_rdata2          // 31:0
+        rf_rdata1,         // 63:32    rs
+        rf_rdata2          // 31:0      rt
     } = id_to_ex_bus_r;
 
     wire [31:0] imm_sign_extend, imm_zero_extend, sa_zero_extend;
@@ -84,6 +84,11 @@ module EX(
     );
 
     assign ex_result = alu_result;
+    assign data_sram_en = data_ram_en;
+    assign data_sram_wen = data_ram_wen;
+    assign data_sram_addr = ex_result ;
+    assign data_sram_wdata = rf_rdata2;  // rt
+
 
     assign ex_to_mem_bus = {
         ex_pc,          // 75:44
