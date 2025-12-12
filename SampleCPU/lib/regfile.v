@@ -6,9 +6,9 @@ module regfile(
     input wire [4:0] raddr2,
     output wire [31:0] rdata2,
     
-    input wire [37:0] ex_to_id_bus,
-    input wire [37:0] mem_to_id_bus,
-    input wire [37:0] wb_to_id_bus,
+    input wire [37:0] ex_to_rf_bus,
+    input wire [37:0] mem_to_rf_bus,
+    input wire [37:0] wb_to_rf_bus,
     
     input wire we,
     input wire [4:0] waddr,
@@ -38,19 +38,19 @@ module regfile(
         ex_rf_we,
         ex_rf_waddr,
         ex_result
-    } = ex_to_id_bus; 
+    } = ex_to_rf_bus; 
     
     assign {
         mem_rf_we,
         mem_rf_waddr,
         mem_result
-    } = mem_to_id_bus;
+    } = mem_to_rf_bus;
     
     assign {
         wb_rf_we,
         wb_rf_waddr,
         wb_result
-    } = wb_to_id_bus;
+    } = wb_to_rf_bus;
     
     // read out 1
     assign rdata1 = (raddr1 == 5'b0) ? 32'b0 : 
