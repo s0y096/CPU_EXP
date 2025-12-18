@@ -6,11 +6,16 @@ module CTRL(
 
     // output reg flush,
     // output reg [31:0] new_pc,
+    input wire stallreq_for_id_if,
     output reg [`StallBus-1:0] stall
+    
 );  
     always @ (*) begin
         if (rst) begin
             stall = `StallBus'b0;
+        end
+        else if (stallreq_for_id_if == `Stop) begin
+            stall = 6'b000111;
         end
         else begin
             stall = `StallBus'b0;
