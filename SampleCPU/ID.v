@@ -10,6 +10,8 @@ module ID(
     input wire [`IF_TO_ID_WD-1:0] if_to_id_bus,
 
     input wire [31:0] inst_sram_rdata,
+    
+    input wire inst_is_lw,
 
     input wire [`WB_TO_RF_WD-1:0] wb_to_rf_bus,
 
@@ -17,17 +19,15 @@ module ID(
     
     input wire [37:0] mem_to_rf_bus,
     
-    input wire inst_is_lw,
-    
-    output wire stallreq_for_id_if,
     
     output wire [`ID_TO_EX_WD-1:0] id_to_ex_bus,
 
-    output wire [`BR_WD-1:0] br_bus 
-);
+    output wire [`BR_WD-1:0] br_bus,
     
-    reg inst_stall_en;
+    output wire stall_for_id_if
+);
     reg [31:0] inst_stall;
+    reg inst_stall_en;
     reg [`IF_TO_ID_WD-1:0] if_to_id_bus_r;
     wire [31:0] inst;
     wire [31:0] id_pc;
@@ -53,20 +53,19 @@ module ID(
     end
     
     always @ (posedge clk) begin
-        inst_stall_en <= 1'b0;
-        inst_stall <= 32'b0;
-        if(stall[1] == `Stop) begin
-            inst_stall_en <= 1'b1;
-            inst_stall <= inst;
+        inst_stall_en<=1'b0;
+        inst_stall <=32'b0;
+        if(stall[1] == 1'b1) begin
+            inst_stall<=inst;
+            inst_stall_en<=1'b1;
         end
     end
+    wire [31:0] inst_stall1;
+    wire inst_stall_en1;
+    assign inst_stall1 = inst_stall;
+    assign inst_stall_en1 = inst_stall_en;
     
-    wire inst_stall_en_trans_to_wire;
-    wire [31:0] inst_stall_trans_to_wire;
-    assign inst_stall_en_trans_to_wire = inst_stall_en;
-    assign inst_stall_trans_to_wire = inst_stall;
-    
-    assign inst = inst_stall_en_trans_to_wire ? inst_stall_trans_to_wire : inst_sram_rdata;
+    assign inst = inst_stall_en1 ? inst_stall1 : inst_sram_rdata;
     assign {
         ce,
         id_pc
@@ -130,12 +129,12 @@ module ID(
     assign base = inst[25:21];
     assign offset = inst[15:0];
     assign sel = inst[2:0];
-
-    assign stallreq_for_id_if = (inst_is_lw == 1'b1 && (rs == ex_to_rf_bus[36:32] || rt == ex_to_rf_bus[36:32]));
-
+    
+    assign stall_for_id_if = (inst_is_lw==1'b1 && ( (rs == ex_to_rf_bus[36:32]) || (rt == ex_to_rf_bus[36:32]) ) );
+    
     wire inst_ori, inst_lui, inst_addiu,
      inst_beq, inst_subu, inst_jr, inst_jal,
-     inst_addu, inst_sll, inst_or, inst_bne,
+     inst_addu, inst_sll, inst_or, inst_ben,
      inst_lw, inst_sw, inst_xor, inst_sltu;
 
     wire op_add, op_sub, op_slt, op_sltu;
@@ -173,7 +172,7 @@ module ID(
     assign inst_addu   = op_d[6'b00_0000] && (inst[10:0]==11'b00_0001_0000_1);
     assign inst_sll        =op_d[6'b00_0000] && (inst[25:21]==5'b00_000) && (inst[5:0]==6'b00_0000); 
     assign inst_or        =op_d[6'b00_0000] && (inst[10:0]==11'b00_0001_0010_1);
-    assign inst_bne     =op_d[6'b00_0101];
+    assign inst_ben     =op_d[6'b00_0101];
     assign inst_lw       =op_d[6'b10_0011];
     assign inst_sw       =op_d[6'b10_1011];
     assign inst_xor      =op_d[6'b00_0000] && (inst[10:6]==5'b00_000) && (inst[5:0]==6'b10_0110);
@@ -269,6 +268,7 @@ module ID(
     wire br_e;
     wire [31:0] br_addr;
     wire rs_eq_rt;
+    wire rs_neq_rt;
     wire rs_ge_z;
     wire rs_gt_z;
     wire rs_le_z;
@@ -277,12 +277,14 @@ module ID(
     assign pc_plus_4 = id_pc + 32'h4;
 
     assign rs_eq_rt = (rdata1 == rdata2);
+    
+    assign rs_neq_rt = (rdata1 != rdata2);
 
-    assign br_e = (inst_beq & rs_eq_rt) | inst_jr | inst_jal | (inst_bne & (~rs_eq_rt));
+    assign br_e = (inst_beq & rs_eq_rt) | inst_jr | inst_jal | (inst_ben & rs_neq_rt);
     assign br_addr = inst_beq ? (pc_plus_4 + {{14{inst[15]}},inst[15:0],2'b0}) :
                                 inst_jr ? (rdata1) :
                                 inst_jal ? ({pc_plus_4[31:28], inst[25:0], 2'b0}) :
-                                inst_bne ? (pc_plus_4 + {{14{inst[15]}}, inst[15:0], 2'b0}) :
+                                inst_ben ? (pc_plus_4 + {{14{inst[15]}}, inst[15:0], 2'b0}) :
                                 32'b0;
 
     assign br_bus = {
