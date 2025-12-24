@@ -29,11 +29,20 @@ module mycpu_core(
     wire [`DATA_SRAM_WD-1:0] ex_dt_sram_bus;
     wire [`WB_TO_RF_WD-1:0] wb_to_rf_bus;
     wire [`StallBus-1:0] stall;
-    wire [37:0] ex_to_rf_bus;
-    wire [37:0] mem_to_rf_bus;
-    wire [37:0] wb_to_rf_bus;
-    wire inst_is_lw;
-    wire stall_for_id_if;
+    
+    wire ex_id; // EX阶段传回，EX阶段sel_rf_res结果传回
+    
+    wire [`EX_TO_RF_WD-1:0] ex_to_rf_bus; // EX阶段传回regfile的数据总线
+    wire [`MEM_TO_RF_WD-1:0] mem_to_rf_bus; // MEM阶段传回regfile的数据总线
+    
+    wire [`LoadBus-1:0] id_load_bus;
+    wire [`SaveBus-1:0] id_save_bus;
+    
+    wire [3:0] data_ram_sel;
+    wire [`LoadBus-1:0] ex_load_bus;
+    
+    wire stallreq_for_bru;
+    
 
     IF u_IF(
     	.clk             (clk             ),
@@ -58,10 +67,12 @@ module mycpu_core(
         .wb_to_rf_bus    (wb_to_rf_bus    ),
         .id_to_ex_bus    (id_to_ex_bus    ),
         .br_bus          (br_bus          ),
-        .ex_to_rf_bus   (ex_to_rf_bus    ),
-        .mem_to_rf_bus (mem_to_rf_bus),
-        .inst_is_lw            (inst_is_lw),
-        .stall_for_id_if      (stall_for_id_if)
+        .ex_id           (ex_id),
+        .ex_to_rf_bus    (ex_to_rf_bus),
+        .mem_to_rf_bus   (mem_to_rf_bus),
+        .id_load_bus     (id_load_bus),
+        .id_save_bus     (id_save_bus),
+        .stallreq_for_bru(stallreq_for_bru)
     );
 
     EX u_EX(
@@ -74,8 +85,12 @@ module mycpu_core(
         .data_sram_wen   (data_sram_wen   ),
         .data_sram_addr  (data_sram_addr  ),
         .data_sram_wdata (data_sram_wdata ),
-        .ex_to_rf_bus  (ex_to_rf_bus  ),
-        .inst_is_lw       (inst_is_lw)
+        .ex_to_rf_bus    (ex_to_rf_bus),
+        .ex_id           (ex_id),
+        .id_load_bus     (id_load_bus),
+        .data_ram_sel    (data_ram_sel),
+        .ex_load_bus     (ex_load_bus),
+        .id_save_bus     (id_save_bus)
     );
 
     MEM u_MEM(
@@ -85,7 +100,9 @@ module mycpu_core(
         .ex_to_mem_bus   (ex_to_mem_bus   ),
         .data_sram_rdata (data_sram_rdata ),
         .mem_to_wb_bus   (mem_to_wb_bus   ),
-        .mem_to_rf_bus (mem_to_rf_bus)
+        .mem_to_rf_bus   (mem_to_rf_bus),
+        .ex_load_bus     (ex_load_bus),
+        .data_ram_sel    (data_ram_sel)
     );
     
     WB u_WB(
@@ -103,7 +120,7 @@ module mycpu_core(
     CTRL u_CTRL(
     	.rst   (rst   ),
         .stall (stall ),
-        .stall_for_id_if (stall_for_id_if)
+        .stallreq_for_bru (stallreq_for_bru)
     );
     
 endmodule
