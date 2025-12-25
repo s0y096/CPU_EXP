@@ -9,6 +9,8 @@
 `define MEM_TO_RF_WD 38
 `define LoadBus 5
 `define SaveBus 3
+`define ID_HI_LO_WD 72
+`define EX_HI_LO_WD 66
 
 `define StallBus 6
 `define NoStop 1'b0

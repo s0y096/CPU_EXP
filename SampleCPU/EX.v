@@ -9,6 +9,9 @@ module EX(
     
     input wire [`LoadBus-1:0] id_load_bus, // ID阶段传递的Load型指令信号
     input wire [`SaveBus-1:0] id_save_bus, // ID阶段传递的Save型指令信号
+    
+    input wire [`ID_HI_LO_WD-1:0] id_hi_lo_bus, //ID段传递的hi_lo寄存器指令信号
+    output wire [`EX_HI_LO_WD-1:0] ex_hi_lo_bus, // EX段传递的hi_lo寄存器信号
 
     output wire [`EX_TO_MEM_WD-1:0] ex_to_mem_bus,
     
@@ -23,19 +26,23 @@ module EX(
     
     output wire [3:0] data_ram_sel,  // 数据RAM选择信号
     
-    output wire [`LoadBus-1:0] ex_load_bus  //EX阶段Load信号总线，传递具体的Load指令类型
+    output wire [`LoadBus-1:0] ex_load_bus,  //EX阶段Load信号总线，传递具体的Load指令类型
+    
+    output wire stallreq_for_ex
     
 );
 
     reg [`ID_TO_EX_WD-1:0] id_to_ex_bus_r;
     reg [`LoadBus-1:0] id_load_bus_r;      // 暂存Load信号
     reg [`SaveBus-1:0] id_save_bus_r;      // 暂存Save信号
+    reg [`ID_HI_LO_WD-1:0] id_hi_lo_bus_r;  // 暂存hi_lo信号
 
     always @ (posedge clk) begin
         if (rst) begin
             id_to_ex_bus_r <= `ID_TO_EX_WD'b0;
             id_load_bus_r <= `LoadBus'b0;
             id_save_bus_r <= `SaveBus'b0;
+            id_hi_lo_bus_r <= `ID_HI_LO_WD'b0;
         end
         // else if (flush) begin
         //     id_to_ex_bus_r <= `ID_TO_EX_WD'b0;
@@ -44,11 +51,13 @@ module EX(
             id_to_ex_bus_r <= `ID_TO_EX_WD'b0;
             id_load_bus_r <= `LoadBus'b0;
             id_save_bus_r <= `SaveBus'b0;
+            id_hi_lo_bus_r <= `ID_HI_LO_WD'b0;
         end
         else if (stall[2]==`NoStop) begin
             id_to_ex_bus_r <= id_to_ex_bus;
             id_load_bus_r <= id_load_bus;
             id_save_bus_r <= id_save_bus;
+            id_hi_lo_bus_r <= id_hi_lo_bus;
         end
     end
 
@@ -89,6 +98,25 @@ module EX(
     
     wire inst_lw;
     wire inst_sw;
+    
+    wire inst_mflo, inst_div, inst_divu, inst_mult, inst_multu, inst_mfhi, inst_mthi, inst_mtlo;
+    
+    wire [31:0] hi, lo;
+    wire hi_we, lo_we;
+    wire [31:0] hi_wdata, lo_wdata;
+    
+    assign {
+        inst_mflo,
+        inst_div,
+        inst_divu,
+        inst_mult,
+        inst_multu,
+        inst_mfhi,
+        inst_mthi,
+        inst_mtlo,
+        hi,
+        lo
+    } = id_hi_lo_bus_r;
 
     assign alu_src1 = sel_alu_src1[1] ? ex_pc :
                       sel_alu_src1[2] ? sa_zero_extend : rf_rdata1;
@@ -104,7 +132,9 @@ module EX(
         .alu_result  (alu_result  )
     );
 
-    assign ex_result = alu_result;
+    assign ex_result = inst_mflo ? lo : 
+                       inst_mfhi ? hi : 
+                       alu_result;
 
     assign ex_to_mem_bus = {
         ex_pc,          // 75:44
@@ -150,14 +180,16 @@ module EX(
     // MUL part
     wire [63:0] mul_result;
     wire mul_signed; // 鏈夌鍙蜂箻娉曟爣璁?
+    
+    assign mul_signed = inst_mult ? 1'b1 : 1'b0;
 
     mul u_mul(
     	.clk        (clk            ),
         .resetn     (~rst           ),
         .mul_signed (mul_signed     ),
-        .ina        (      ), // 涔樻硶婧愭搷浣滄暟1
-        .inb        (      ), // 涔樻硶婧愭搷浣滄暟2
-        .result     (mul_result     ) // 涔樻硶缁撴灉 64bit
+        .ina        (rf_rdata1), // 乘法源操作数1
+        .inb        (rf_rdata2), // 乘法源操作数2
+        .result     (mul_result     ) // 乘法结果 64bit
     );
 
     // DIV part
@@ -252,6 +284,26 @@ module EX(
     end
 
     // mul_result 鍜? div_result 鍙互鐩存帴浣跨敤
+    
+    assign hi_we = inst_div | inst_divu | inst_mult | inst_multu | inst_mthi;
+    assign lo_we = inst_div | inst_divu | inst_mult | inst_multu | inst_mtlo;
+    
+    assign hi_wdata = (inst_div | inst_divu) ? div_result[63:32] : 
+                      (inst_mult | inst_multu) ? mul_result[63:32] : 
+                      inst_mthi ? rf_rdata1 : 
+                      32'b0;
+    assign lo_wdata = (inst_div | inst_divu) ? div_result[31:0] : 
+                      (inst_mult | inst_multu) ? mul_result[31:0] : 
+                      inst_mtlo ? rf_rdata1 : 
+                      32'b0;
+    
+    // EX段传递的hi_lo寄存器信号
+    assign ex_hi_lo_bus = {
+        hi_we,
+        lo_we,
+        hi_wdata,
+        lo_wdata
+    };
     
     
 endmodule
