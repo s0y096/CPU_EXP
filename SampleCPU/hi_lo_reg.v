@@ -37,15 +37,11 @@ module hi_lo_reg(
     reg [31:0] reg_lo;
     
     always @ (posedge clk) begin
-        if(hi_we & lo_we) begin
+        if(hi_we) begin
             reg_hi <= hi_wdata;
-            reg_lo <= lo_wdata;
         end
-        else if(~hi_we & lo_we) begin
+        if(lo_we) begin
             reg_lo <= lo_wdata;
-        end
-        else if(hi_we & ~lo_we) begin
-            reg_hi <= hi_wdata;
         end
     end
     

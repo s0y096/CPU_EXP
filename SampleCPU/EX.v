@@ -99,7 +99,7 @@ module EX(
     wire inst_lw;
     wire inst_sw;
     
-    wire inst_mflo, inst_div, inst_divu, inst_mult, inst_multu, inst_mfhi;
+    wire inst_mflo, inst_div, inst_divu, inst_mult, inst_multu, inst_mfhi, inst_mthi, inst_mtlo;
     
     wire [31:0] hi, lo;
     wire hi_we, lo_we;
@@ -112,6 +112,8 @@ module EX(
         inst_mult,
         inst_multu,
         inst_mfhi,
+        inst_mthi,
+        inst_mtlo,
         hi,
         lo
     } = id_hi_lo_bus_r;
@@ -283,14 +285,16 @@ module EX(
 
     // mul_result å’? div_result å¯ä»¥ç›´æ¥ä½¿ç”¨
     
-    assign hi_we = inst_div | inst_divu | inst_mult | inst_multu;
-    assign lo_we = inst_div | inst_divu | inst_mult | inst_multu;
+    assign hi_we = inst_div | inst_divu | inst_mult | inst_multu | inst_mthi;
+    assign lo_we = inst_div | inst_divu | inst_mult | inst_multu | inst_mtlo;
     
     assign hi_wdata = (inst_div | inst_divu) ? div_result[63:32] : 
                       (inst_mult | inst_multu) ? mul_result[63:32] : 
+                      inst_mthi ? rf_rdata1 : 
                       32'b0;
     assign lo_wdata = (inst_div | inst_divu) ? div_result[31:0] : 
                       (inst_mult | inst_multu) ? mul_result[31:0] : 
+                      inst_mtlo ? rf_rdata1 : 
                       32'b0;
     
     // EX¶Î´«µİµÄhi_lo¼Ä´æÆ÷ĞÅºÅ

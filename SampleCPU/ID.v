@@ -203,7 +203,8 @@ module ID(
           inst_srl, inst_srlv, inst_bgez, inst_bgtz,
           inst_blez, inst_bltz, inst_bltzal, inst_bgezal, 
           inst_jalr, inst_mflo, inst_div, inst_divu, 
-          inst_mult, inst_multu, inst_mfhi;
+          inst_mult, inst_multu, inst_mfhi, inst_mthi, 
+          inst_mtlo;
 
     wire op_add, op_sub, op_slt, op_sltu;
     wire op_and, op_nor, op_or, op_xor;
@@ -284,6 +285,9 @@ module ID(
     assign inst_mult    = op_d[6'b00_0000] & rd_d[5'b00_000] & sa_d[5'b00_000] & func_d[6'b01_1000];
     assign inst_multu   = op_d[6'b00_0000] & rd_d[5'b00_000] & sa_d[5'b00_000] & func_d[6'b01_1001];
     assign inst_mfhi    = op_d[6'b00_0000] & rs_d[5'b00_000] & rt_d[5'b00_000] & sa_d[5'b00_000] & func_d[6'b01_0000];
+    assign inst_mthi    = op_d[6'b00_0000] & rt_d[5'b00_000] & rd_d[5'b00_000] & sa_d[5'b00_000] & func_d[6'b01_0001];
+    assign inst_mtlo    = op_d[6'b00_0000] & rt_d[5'b00_000] & rd_d[5'b00_000] & sa_d[5'b00_000] & func_d[6'b01_0011];
+    
     
     wire debug_id_inst;
     assign debug_id_inst = inst_ori     | inst_lui     | inst_addiu   | inst_beq     | inst_subu    | inst_jal     | 
@@ -293,12 +297,12 @@ module ID(
                            inst_nor     | inst_xori    | inst_sllv    | inst_sra     | inst_srav    | inst_srl     | 
                            inst_srlv    | inst_bgez    | inst_bgtz    | inst_blez    | inst_bltz    | inst_bltzal  | 
                            inst_bgezal  | inst_jalr    | inst_mflo    | inst_div     | inst_divu    | inst_mult    | 
-                           inst_multu   | inst_mfhi;
+                           inst_multu   | inst_mfhi    | inst_mthi    | inst_mtlo ;
     
     
     // rs to reg1
     assign sel_alu_src1[0] = inst_ori | inst_addiu | inst_subu | inst_jr | inst_addu | inst_or | inst_lw | inst_sw | inst_xor | inst_sltu | inst_slt | inst_slti | inst_sltiu | inst_add | inst_addi | inst_sub | inst_and | inst_andi | inst_nor | inst_xori | inst_sllv | inst_srav | 
-                             inst_srlv | inst_div;
+                             inst_srlv | inst_div | inst_mthi | inst_mtlo;
 
     // pc to reg1
     assign sel_alu_src1[1] = inst_jal | inst_bltzal | inst_bgezal | inst_jalr;
@@ -439,6 +443,8 @@ module ID(
         inst_mult,
         inst_multu,
         inst_mfhi,
+        inst_mthi,
+        inst_mtlo,
         hi,
         lo
     };
