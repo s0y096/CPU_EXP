@@ -38,10 +38,14 @@ module mycpu_core(
     wire [`LoadBus-1:0] id_load_bus;
     wire [`SaveBus-1:0] id_save_bus;
     
+    wire [`ID_HI_LO_WD-1:0] id_hi_lo_bus;
+    wire [`EX_HI_LO_WD-1:0] ex_hi_lo_bus;
+    
     wire [3:0] data_ram_sel;
     wire [`LoadBus-1:0] ex_load_bus;
     
     wire stallreq_for_bru;
+    wire stallreq_for_ex;
     
 
     IF u_IF(
@@ -72,6 +76,8 @@ module mycpu_core(
         .mem_to_rf_bus   (mem_to_rf_bus),
         .id_load_bus     (id_load_bus),
         .id_save_bus     (id_save_bus),
+        .id_hi_lo_bus    (id_hi_lo_bus),
+        .ex_hi_lo_bus    (ex_hi_lo_bus),
         .stallreq_for_bru(stallreq_for_bru)
     );
 
@@ -90,7 +96,10 @@ module mycpu_core(
         .id_load_bus     (id_load_bus),
         .data_ram_sel    (data_ram_sel),
         .ex_load_bus     (ex_load_bus),
-        .id_save_bus     (id_save_bus)
+        .id_save_bus     (id_save_bus),
+        .id_hi_lo_bus    (id_hi_lo_bus),
+        .ex_hi_lo_bus    (ex_hi_lo_bus),
+        .stallreq_for_ex (stallreq_for_ex)
     );
 
     MEM u_MEM(
@@ -120,7 +129,8 @@ module mycpu_core(
     CTRL u_CTRL(
     	.rst   (rst   ),
         .stall (stall ),
-        .stallreq_for_bru (stallreq_for_bru)
+        .stallreq_for_bru (stallreq_for_bru),
+        .stallreq_for_ex  (stallreq_for_ex)
     );
     
 endmodule
