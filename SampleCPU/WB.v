@@ -49,7 +49,7 @@ module WB(
         rf_waddr,
         rf_wdata
     };
-    
+
     assign debug_wb_pc = wb_pc;
     assign debug_wb_rf_wen = {4{rf_we}};
     assign debug_wb_rf_wnum = rf_waddr;

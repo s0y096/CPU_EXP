@@ -6,31 +6,58 @@ module EX(
     input wire [`StallBus-1:0] stall,
 
     input wire [`ID_TO_EX_WD-1:0] id_to_ex_bus,
+    
+    input wire [`LoadBus-1:0] id_load_bus, // ID阶段传递的Load型指令信号
+    input wire [`SaveBus-1:0] id_save_bus, // ID阶段传递的Save型指令信号
+    
+    input wire [`ID_HI_LO_WD-1:0] id_hi_lo_bus, //ID段传递的hi_lo寄存器指令信号
+    output wire [`EX_HI_LO_WD-1:0] ex_hi_lo_bus, // EX段传递的hi_lo寄存器信号
 
     output wire [`EX_TO_MEM_WD-1:0] ex_to_mem_bus,
-
-    output wire [37:0] ex_to_rf_bus,
+    
+    output wire [`EX_TO_RF_WD-1:0] ex_to_rf_bus,// EX阶段传回regfile的数据总线
 
     output wire data_sram_en,
     output wire [3:0] data_sram_wen,
     output wire [31:0] data_sram_addr,
-    output wire [31:0] data_sram_wdata
+    output wire [31:0] data_sram_wdata,
+    
+    output wire ex_id, // EX阶段传回，停顿识别信号
+    
+    output wire [3:0] data_ram_sel,  // 数据RAM选择信号
+    
+    output wire [`LoadBus-1:0] ex_load_bus,  //EX阶段Load信号总线，传递具体的Load指令类型
+    
+    output wire stallreq_for_ex
+    
 );
 
     reg [`ID_TO_EX_WD-1:0] id_to_ex_bus_r;
+    reg [`LoadBus-1:0] id_load_bus_r;      // 暂存Load信号
+    reg [`SaveBus-1:0] id_save_bus_r;      // 暂存Save信号
+    reg [`ID_HI_LO_WD-1:0] id_hi_lo_bus_r;  // 暂存hi_lo信号
 
     always @ (posedge clk) begin
         if (rst) begin
             id_to_ex_bus_r <= `ID_TO_EX_WD'b0;
+            id_load_bus_r <= `LoadBus'b0;
+            id_save_bus_r <= `SaveBus'b0;
+            id_hi_lo_bus_r <= `ID_HI_LO_WD'b0;
         end
         // else if (flush) begin
         //     id_to_ex_bus_r <= `ID_TO_EX_WD'b0;
         // end
         else if (stall[2]==`Stop && stall[3]==`NoStop) begin
             id_to_ex_bus_r <= `ID_TO_EX_WD'b0;
+            id_load_bus_r <= `LoadBus'b0;
+            id_save_bus_r <= `SaveBus'b0;
+            id_hi_lo_bus_r <= `ID_HI_LO_WD'b0;
         end
         else if (stall[2]==`NoStop) begin
             id_to_ex_bus_r <= id_to_ex_bus;
+            id_load_bus_r <= id_load_bus;
+            id_save_bus_r <= id_save_bus;
+            id_hi_lo_bus_r <= id_hi_lo_bus;
         end
     end
 
@@ -57,8 +84,8 @@ module EX(
         rf_we,          // 70
         rf_waddr,       // 69:65
         sel_rf_res,     // 64
-        rf_rdata1,         // 63:32    rs
-        rf_rdata2          // 31:0      rt
+        rf_rdata1,         // 63:32
+        rf_rdata2          // 31:0
     } = id_to_ex_bus_r;
 
     wire [31:0] imm_sign_extend, imm_zero_extend, sa_zero_extend;
@@ -68,6 +95,28 @@ module EX(
 
     wire [31:0] alu_src1, alu_src2;
     wire [31:0] alu_result, ex_result;
+    
+    wire inst_lw;
+    wire inst_sw;
+    
+    wire inst_mflo, inst_div, inst_divu, inst_mult, inst_multu, inst_mfhi, inst_mthi, inst_mtlo;
+    
+    wire [31:0] hi, lo;
+    wire hi_we, lo_we;
+    wire [31:0] hi_wdata, lo_wdata;
+    
+    assign {
+        inst_mflo,
+        inst_div,
+        inst_divu,
+        inst_mult,
+        inst_multu,
+        inst_mfhi,
+        inst_mthi,
+        inst_mtlo,
+        hi,
+        lo
+    } = id_hi_lo_bus_r;
 
     assign alu_src1 = sel_alu_src1[1] ? ex_pc :
                       sel_alu_src1[2] ? sa_zero_extend : rf_rdata1;
@@ -83,12 +132,9 @@ module EX(
         .alu_result  (alu_result  )
     );
 
-    assign ex_result = alu_result;
-    assign data_sram_en = data_ram_en;
-    assign data_sram_wen = data_ram_wen;
-    assign data_sram_addr = ex_result ;
-    assign data_sram_wdata = rf_rdata2;  // rt
-
+    assign ex_result = inst_mflo ? lo : 
+                       inst_mfhi ? hi : 
+                       alu_result;
 
     assign ex_to_mem_bus = {
         ex_pc,          // 75:44
@@ -99,23 +145,50 @@ module EX(
         rf_waddr,       // 36:32
         ex_result       // 31:0
     };
-
+    
+    assign ex_id = sel_rf_res; //EX将sel_rf_res结果传回ID
+    
+    // EX将结果传回regfile
     assign ex_to_rf_bus = {
         rf_we,          // 37
         rf_waddr,       // 36:32
         ex_result       // 31:0
     };
-
+    
+    assign{
+        inst_lw
+    } = id_load_bus_r;
+    
+    assign{
+        inst_sw
+    } = id_save_bus_r;
+    
+    assign ex_load_bus = {
+        inst_lw 
+    };
+    
+    assign data_ram_sel = (inst_lw | inst_sw) ? 4'b1111 : 4'b0000;
+    
+    assign data_sram_en = data_ram_en;
+    
+    assign data_sram_wen = data_ram_wen & data_ram_sel;
+    
+    assign data_sram_addr = ex_result;
+    
+    assign data_sram_wdata = rf_rdata2;
+    
     // MUL part
     wire [63:0] mul_result;
-    wire mul_signed; // 有符号乘法标记
+    wire mul_signed; // 鏈夌鍙蜂箻娉曟爣璁?
+    
+    assign mul_signed = inst_mult ? 1'b1 : 1'b0;
 
     mul u_mul(
     	.clk        (clk            ),
         .resetn     (~rst           ),
         .mul_signed (mul_signed     ),
-        .ina        (      ), // 乘法源操作数1
-        .inb        (      ), // 乘法源操作数2
+        .ina        (rf_rdata1), // 乘法源操作数1
+        .inb        (rf_rdata2), // 乘法源操作数2
         .result     (mul_result     ) // 乘法结果 64bit
     );
 
@@ -139,7 +212,7 @@ module EX(
         .opdata2_i    (div_opdata2_o    ),
         .start_i      (div_start_o      ),
         .annul_i      (1'b0      ),
-        .result_o     (div_result     ), // 乘法结果 64bit
+        .result_o     (div_result     ), // 闄ゆ硶缁撴灉 64bit
         .ready_o      (div_ready_i      )
     );
 
@@ -210,7 +283,27 @@ module EX(
         end
     end
 
-    // mul_result 和 div_result 可以直接使用
+    // mul_result 鍜? div_result 鍙互鐩存帴浣跨敤
+    
+    assign hi_we = inst_div | inst_divu | inst_mult | inst_multu | inst_mthi;
+    assign lo_we = inst_div | inst_divu | inst_mult | inst_multu | inst_mtlo;
+    
+    assign hi_wdata = (inst_div | inst_divu) ? div_result[63:32] : 
+                      (inst_mult | inst_multu) ? mul_result[63:32] : 
+                      inst_mthi ? rf_rdata1 : 
+                      32'b0;
+    assign lo_wdata = (inst_div | inst_divu) ? div_result[31:0] : 
+                      (inst_mult | inst_multu) ? mul_result[31:0] : 
+                      inst_mtlo ? rf_rdata1 : 
+                      32'b0;
+    
+    // EX段传递的hi_lo寄存器信号
+    assign ex_hi_lo_bus = {
+        hi_we,
+        lo_we,
+        hi_wdata,
+        lo_wdata
+    };
     
     
 endmodule
